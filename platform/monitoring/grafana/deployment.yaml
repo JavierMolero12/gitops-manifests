@@ -73,13 +73,16 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          # Grafana 13 ronda los 280Mi en reposo y sube al renderizar dashboards: con
+          # 384Mi de límite sufrió un OOMKill al abrir el dashboard. Request realista
+          # para que el scheduler reserve lo que de verdad usa, y límite con margen.
           resources:
             requests:
               cpu: 50m
-              memory: 160Mi
+              memory: 320Mi
             limits:
               cpu: 500m
-              memory: 384Mi
+              memory: 640Mi
           # La primera arrancada ejecuta las migraciones de la base de datos: margen
           # amplio antes de que liveness empiece a contar.
           startupProbe:
