@@ -27,13 +27,21 @@ jobs:
             | tar -xz -C "${RUNNER_TEMP}/bin" kubeconform
           echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
 
-      - name: Renderizar overlays con Kustomize
+      - name: Renderizar overlays y plataforma con Kustomize
         run: |
           mkdir -p rendered
-          for overlay in apps/overlays/*/; do
-            env_name="$(basename "${overlay}")"
-            kubectl kustomize "${overlay}" > "rendered/${env_name}.yaml"
-            echo "Renderizado ${env_name}: $(grep -c '^kind:' "rendered/${env_name}.yaml") recursos"
+          for dir in apps/overlays/*/ platform/*/; do
+            name="$(basename "${dir}")"
+            kubectl kustomize "${dir}" > "rendered/${name}.yaml"
+            echo "Renderizado ${name}: $(grep -c '^kind:' "rendered/${name}.yaml") recursos"
+          done
+
+      - name: Validar JSON de los dashboards de Grafana
+        run: |
+          for f in platform/monitoring/grafana/dashboards/*.json; do
+            jq -e '.uid and .title and (.panels | length > 0)' "${f}" > /dev/null \
+              || { echo "::error file=${f}::Dashboard inválido"; exit 1; }
+            echo "OK ${f}"
           done
 
       - name: Validar esquemas de Kubernetes

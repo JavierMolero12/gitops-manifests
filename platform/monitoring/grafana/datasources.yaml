@@ -1,0 +1,13 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    # uid fijo: el dashboard lo referencia por uid, no por nombre.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus.monitoring.svc:9090
+    isDefault: true
+    # Gestionado desde Git: no se puede modificar desde la UI.
+    editable: false
+    jsonData:
+      timeInterval: 15s

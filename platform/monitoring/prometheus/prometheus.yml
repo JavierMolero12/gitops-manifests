@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Descubre los pods de sample-api a través del API server y solo scrapea los que
+  # declaran prometheus.io/scrape=true: añadir una app nueva no requiere tocar este fichero.
+  - job_name: sample-api
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - sample-api-dev
+            - sample-api-prod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      # Pods que aún no corren o ya terminaron no tienen nada que exponer.
+      - source_labels: [__meta_kubernetes_pod_phase]
+        action: drop
+        regex: Pending|Succeeded|Failed
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        regex: (.+)
+        target_label: __metrics_path__
+      - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: (.+);(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      # sample-api-dev -> environment="dev"; sample-api-prod -> environment="prod".
+      - source_labels: [__meta_kubernetes_namespace]
+        regex: sample-api-(.+)
+        replacement: $1
+        target_label: environment
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: gitops
+    folder: GitOps
+    type: file
+    # Los dashboards viven en Git: no se pueden borrar ni guardar cambios desde la UI.
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards

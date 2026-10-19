@@ -60,3 +60,38 @@ spec:
   # Avisa en la UI de recursos creados a mano en el namespace de prod que no están en Git.
   orphanedResources:
     warn: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Observabilidad de plataforma (Prometheus + Grafana)
+  sourceRepos:
+    - https://github.com/javiermolero12/gitops-manifests.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+  # Además del Namespace, solo el ClusterRole/Binding de lectura de pods que necesita
+  # el service discovery de Prometheus.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress

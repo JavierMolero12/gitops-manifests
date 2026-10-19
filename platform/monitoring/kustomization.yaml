@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - prometheus/rbac.yaml
+  - prometheus/deployment.yaml
+  - prometheus/service.yaml
+  - grafana/deployment.yaml
+  - grafana/service.yaml
+  - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: gitops-microservice-delivery
+      app.kubernetes.io/managed-by: argocd
+    includeSelectors: false
+
+# Generadores en vez de ConfigMaps escritos a mano: el nombre lleva un hash del
+# contenido, así que cambiar la config o el dashboard en Git reinicia el pod que la usa.
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - prometheus.yml=prometheus/prometheus.yml
+  - name: grafana-datasources
+    files:
+      - datasources.yaml=grafana/datasources.yaml
+  - name: grafana-dashboard-providers
+    files:
+      - dashboards.yaml=grafana/dashboards.yaml
+  - name: grafana-dashboards
+    files:
+      - sample-api.json=grafana/dashboards/sample-api.json
