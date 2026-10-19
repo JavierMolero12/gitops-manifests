@@ -17,7 +17,7 @@ labels:
 images:
   - name: sample-api
     newName: ghcr.io/javiermolero12/sample-api
-    newTag: "pending-first-ci-run"
+    newTag: "ed01aa462622ba11c87c77902dd1f4f63819a249"
 
 patches:
   # Strategic merge: requests/limits de producción.
