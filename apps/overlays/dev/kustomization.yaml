@@ -12,7 +12,7 @@ labels:
 images:
   - name: sample-api
     newName: ghcr.io/javiermolero12/sample-api
-    newTag: "47b8d0da927a3406ffc4f6d9416abb6f1072c06f"
+    newTag: "ed01aa462622ba11c87c77902dd1f4f63819a249"
 patches:
   # Strategic merge: configuración propia de dev (más log, APP_ENV=dev).
   - path: patch-env.yaml
