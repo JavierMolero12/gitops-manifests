@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-api
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/component: api
+spec:
+  # 1 réplica por defecto (dev). En prod el número lo gestiona el HPA.
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sample-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Nunca baja de la capacidad deseada durante un despliegue.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sample-api
+        app.kubernetes.io/component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /api/v1/metrics
+    spec:
+      # La API no habla con el API server de Kubernetes: no necesita token montado.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        # Rechaza el arranque si la imagen intentara ejecutarse como UID 0.
+        runAsNonRoot: true
+        # UID/GID del usuario "nonroot" de las imágenes distroless.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sample-api
+          # Nombre lógico: cada overlay lo resuelve a ghcr.io/<owner>/sample-api:<sha>
+          # mediante el campo images de Kustomize.
+          image: sample-api
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: sample-api-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            # Python + uvicorn en reposo consume ~50Mi; 128Mi deja margen sin
+            # sobredimensionar el clúster local.
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          # startupProbe protege el arranque en frío: liveness no empieza a contar
+          # hasta que la app ha respondido una vez.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Única ruta escribible: el root filesystem es de solo lectura.
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample-api
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/component: api
+spec:
+  # Traefik es el ingress controller que k3s/k3d instala por defecto; k3d publica su
+  # puerto 80 en el 8080 del host.
+  ingressClassName: traefik
+  rules:
+    # *.localhost resuelve a 127.0.0.1 sin tocar /etc/hosts. Dev sobrescribe el host.
+    - host: sample-api.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sample-api
+                port:
+                  name: http

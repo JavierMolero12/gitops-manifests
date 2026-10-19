@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-api
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sample-api
+  ports:
+    - name: http
+      port: 80
+      # Se referencia el puerto por nombre: si cambia el containerPort, el Service
+      # no hay que tocarlo.
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: sample-api
+          resources:
+            requests:
+              # El HPA calcula el % de CPU sobre este valor: un request realista hace
+              # que el umbral del 70 % signifique carga real.
+              cpu: 250m
+              # Memoria request == limit: el pod no se programa en un nodo que no
+              # pueda garantizarla, y se evitan OOMKills por sobrecompromiso del nodo.
+              memory: 192Mi
+            limits:
+              # Límite de CPU 2x el request: absorbe picos cortos sin acaparar el nodo.
+              cpu: 500m
+              memory: 192Mi

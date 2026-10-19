@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+# includeSelectors: false -> las labels comunes no se inyectan en los selectores,
+# que son inmutables en un Deployment y romperían futuras actualizaciones.
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: gitops-microservice-delivery
+      app.kubernetes.io/managed-by: argocd
+    includeSelectors: false

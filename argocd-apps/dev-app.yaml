@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-api-dev
+  namespace: argocd
+  # Al borrar esta Application se borran también sus recursos del clúster.
+  # En dev es lo deseado: el entorno es desechable y Git es la fuente de verdad.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sample-api-dev
+  source:
+    repoURL: https://github.com/javiermolero12/gitops-manifests.git
+    targetRevision: main
+    path: apps/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample-api-dev
+  syncPolicy:
+    automated:
+      # Lo que se borra de Git se borra del clúster.
+      prune: true
+      # Cualquier cambio manual (kubectl edit/scale/delete) se revierte al estado de Git.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    # El namespace exige el Pod Security Standard "restricted": un pod que no cumpla
+    # mínimo privilegio (root, escalada, capabilities) es rechazado por el clúster.
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: latest
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10

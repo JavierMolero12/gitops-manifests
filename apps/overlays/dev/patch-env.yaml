@@ -1,0 +1,8 @@
+# Solo las claves que difieren de la base; el resto se hereda.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-api-config
+data:
+  APP_ENV: dev
+  LOG_LEVEL: debug

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-api-config
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/component: api
+# La base lleva los valores seguros de producción: así prod no necesita parche de
+# configuración y solo dev declara sus diferencias (patch-env.yaml).
+data:
+  APP_ENV: prod
+  LOG_LEVEL: info

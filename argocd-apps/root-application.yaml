@@ -1,0 +1,35 @@
+# Application raíz del patrón App-of-Apps. setup.sh la aplica una sola vez con kubectl;
+# a partir de ahí todo lo demás (AppProjects y Applications de dev/prod) llega desde Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  # Sin finalizer a propósito: borrar la raíz por error NO debe arrastrar en cascada
+  # a las Applications hijas ni a las cargas de trabajo de prod.
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/javiermolero12/gitops-manifests.git
+    targetRevision: main
+    path: argocd-apps
+    directory:
+      recurse: false
+      # La raíz vive en el mismo directorio que gestiona; se excluye para que no se
+      # gestione a sí misma.
+      exclude: root-application.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    # La raíz solo gestiona definiciones de Applications/AppProjects: sincronizarlas en
+    # automático no despliega prod, porque la Application de prod es de sync manual.
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-api-prod
+  namespace: argocd
+  # Finalizer presente: si alguien elimina la Application de forma deliberada, se
+  # retiran también sus recursos y no quedan cargas huérfanas sin gestionar.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sample-api-prod
+  source:
+    repoURL: https://github.com/javiermolero12/gitops-manifests.git
+    targetRevision: main
+    path: apps/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample-api-prod
+  # SIN bloque "automated": un cambio en Git deja la Application en OutOfSync y una
+  # persona decide cuándo sincronizar (UI, CLI o paso aprobado del pipeline).
+  # El cambio ya llegó a main mediante una Pull Request revisada.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      # Si un sync elimina recursos, lo hace al final, cuando lo nuevo ya está sano.
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: latest
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m
+  revisionHistoryLimit: 10

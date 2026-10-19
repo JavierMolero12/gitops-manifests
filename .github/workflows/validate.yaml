@@ -1,0 +1,76 @@
+name: validate
+
+# Puerta de calidad del repo GitOps: ningún cambio llega a main (y por tanto a Argo CD)
+# sin renderizar, validar esquemas y cumplir las políticas de seguridad.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  KUBECONFORM_VERSION: v0.8.0
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar kubeconform
+        run: |
+          mkdir -p "${RUNNER_TEMP}/bin"
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C "${RUNNER_TEMP}/bin" kubeconform
+          echo "${RUNNER_TEMP}/bin" >> "$GITHUB_PATH"
+
+      - name: Renderizar overlays con Kustomize
+        run: |
+          mkdir -p rendered
+          for overlay in apps/overlays/*/; do
+            env_name="$(basename "${overlay}")"
+            kubectl kustomize "${overlay}" > "rendered/${env_name}.yaml"
+            echo "Renderizado ${env_name}: $(grep -c '^kind:' "rendered/${env_name}.yaml") recursos"
+          done
+
+      - name: Validar esquemas de Kubernetes
+        run: kubeconform -strict -summary rendered/
+
+      - name: Validar Applications y AppProjects de Argo CD
+        run: |
+          kubeconform -strict -summary \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            argocd-apps/
+
+      - name: "Política: mínimo privilegio, recursos y probes"
+        # yq viene preinstalado en ubuntu-latest. Falla si no hay Deployments o si
+        # alguno incumple las reglas.
+        run: |
+          for file in rendered/*.yaml; do
+            yq ea -e '
+              [select(.kind == "Deployment")] | [length > 0, all_c(
+                .spec.template.spec.securityContext.runAsNonRoot == true and
+                (.spec.template.spec.containers | all_c(
+                  .resources.requests.cpu != null and
+                  .resources.requests.memory != null and
+                  .resources.limits.cpu != null and
+                  .resources.limits.memory != null and
+                  .livenessProbe != null and
+                  .readinessProbe != null and
+                  .securityContext.allowPrivilegeEscalation == false and
+                  .securityContext.readOnlyRootFilesystem == true
+                ))
+              )] | all
+            ' "${file}" > /dev/null || { echo "::error file=${file}::Deployment sin runAsNonRoot, requests/limits o probes"; exit 1; }
+            echo "OK ${file}"
+          done
+
+      - name: "Política: prod nunca tiene sync automático"
+        run: |
+          yq -e '.spec.syncPolicy.automated == null' argocd-apps/prod-app.yaml > /dev/null \
+            || { echo "::error file=argocd-apps/prod-app.yaml::prod no puede tener syncPolicy.automated"; exit 1; }
+          echo "OK: prod-app.yaml requiere sincronización manual"

@@ -1,0 +1,62 @@
+# Un AppProject por entorno: cada Application solo puede desplegar desde este repo,
+# en su propio namespace y los tipos de recurso listados. Se crean antes que las
+# Applications (sync-wave -1) porque estas los referencian.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sample-api-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Entorno dev de sample-api (sync automático)
+  sourceRepos:
+    - https://github.com/javiermolero12/gitops-manifests.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: sample-api-dev
+  # Namespace es el único recurso de clúster permitido (lo crea CreateNamespace=true).
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sample-api-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Entorno prod de sample-api (sync manual tras PR revisada)
+  sourceRepos:
+    - https://github.com/javiermolero12/gitops-manifests.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: sample-api-prod
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+  # Avisa en la UI de recursos creados a mano en el namespace de prod que no están en Git.
+  orphanedResources:
+    warn: true

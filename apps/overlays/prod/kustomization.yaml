@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sample-api-prod
+
+resources:
+  - ../../base
+  - hpa.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: prod
+    includeSelectors: false
+
+# Promoción a prod = Pull Request que copia aquí el tag ya validado en dev.
+# Nunca lo modifica el pipeline directamente.
+images:
+  - name: sample-api
+    newName: ghcr.io/javiermolero12/sample-api
+    newTag: "pending-first-ci-run"
+
+patches:
+  # Strategic merge: requests/limits de producción.
+  - path: patch-resources.yaml
+  # Con HPA, spec.replicas no debe estar en Git: si estuviera, cada sync de Argo CD
+  # devolvería el Deployment a ese valor y pelearía con el autoescalado.
+  - target:
+      kind: Deployment
+      name: sample-api
+    patch: |-
+      - op: remove
+        path: /spec/replicas
